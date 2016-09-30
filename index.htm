@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pac-Man Maze Generation</title>
+  <link rel="stylesheet" href="pacman.css">
+  <script src="tetris/colors.js"></script>
+  <script src="tetris/mapgen.js"></script>
+  <script src="tetris/Map.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+  <script>
+  dot = '<div class="dot"></div>'
+  power = '<div class="dot power blink"></div>'
+  ghostSpeedTable =[[.75,.5,.4],
+  [.85,.55,.45],
+  [.95,.6,.5]]
+  pacSpeedTable =[[.8,.71,.9,.79],
+  [.9,.79,.95,.83],
+  [1,.87,1,.87],
+  [.9,.79,.9,.79]]
+  ghostWeakenTimingTable = [[6,5],
+  [5,5],
+  [4,5],
+  [3,5],
+  [2,5],
+  [5,5],
+  [2,5],
+  [2,5],
+  [1,3],
+  [5,5],
+  [2,5],
+  [1,3],
+  [1,3],
+  [3,5],
+  [1,3],
+  [1,3],
+  [0,0],
+  [1,3]]
+  scatterTiming=[[7000,20000,7000,20000,5000,20000,5000,999999999999],
+  [7000,20000,7000,20000,5000,1033000,10,999999999999],
+  [5000,20000,5000,20000,5000,1037000,10,999999999999]]
+  var drawImg = function(x,y,target)
+  {
+    $(target).css("top",(y-7)+"px");
+    $(target).css("left",(x-7)+"px");
+  }
+  var tryMove = function(dir,x,y)
+  {
+    var targetX, targetY;
+    switch(dir){
+      case "left":
+      targetX=x-15;
+      targetY=y;
+      break;
+      case "right":
+      targetX=x+15;
+      targetY=y;
+      break;
+      case "up":
+      targetX=x;
+      targetY=y-15;
+      break;
+      case "down":
+      targetX=x;
+      targetY=y+15;
+      break;
+    }
+    targetX=Math.floor(targetX/15);
+    targetY=Math.floor(targetY/15);
+    target = source.getTile(targetX,targetY+3)
+    return (!(target == "|" || target == "-"));
+  }
+  function init(){
+    typeof setupTimer != "undefined" && clearTimeout(setupTimer)
+    score = 0;
+    $('.score').text("Score: "+score);
+    level = 0;
+    lives = 2;
+    elife = false;
+    $('.lifeholder').html("");
+    for(var i = 0; i < lives; i++)
+    {
+      $('.lifeholder').append("<img src=serveimage.png height=15 width =15>")
+    }
+    drawLevel();
+  }
+  function drawLevel(){
+    level++;
+    typeof blinky != "undefined" && blinky.vulnTimer && clearTimeout(blinky.vulnTimer)
+    typeof blinky != "undefined" && blinky.moveTimer && clearTimeout(blinky.moveTimer)
+    typeof blinky != "undefined" && blinky.updateTimer && clearTimeout(blinky.updateTimer)
+    typeof pinky != "undefined" && pinky.vulnTimer && clearTimeout(pinky.vulnTimer)
+    typeof pinky != "undefined" && pinky.moveTimer && clearTimeout(pinky.moveTimer)
+    typeof pinky != "undefined" && pinky.updateTimer && clearTimeout(pinky.updateTimer)
+    typeof inky != "undefined" && inky.vulnTimer && clearTimeout(inky.vulnTimer)
+    typeof inky != "undefined" && inky.moveTimer && clearTimeout(inky.moveTimer)
+    typeof inky != "undefined" && inky.updateTimer && clearTimeout(inky.updateTimer)
+    typeof clyde != "undefined" && clyde.vulnTimer && clearTimeout(clyde.vulnTimer)
+    typeof clyde != "undefined" && clyde.moveTimer && clearTimeout(clyde.moveTimer)
+    typeof clyde != "undefined" && clyde.updateTimer && clearTimeout(clyde.updateTimer)
+    typeof pac != "undefined" && pac.updateTimer && clearTimeout(pac.updateTimer)
+
+    source = mapgen();
+    map = []
+    vulnGhosts = [];
+    for(var x = 0; x < 28; x++){
+      map[x]=[];
+      for(var y = 3; y < 34; y++){
+        map[x][y] = source.getTile(x,y)
+      }
+    }
+    $("#container").html("");
+    for(var y = 3; y < 34; y++){
+      for(var x = 0; x < 28; x++){
+        s = map[x][y];
+        if (s == " "){
+          s = "<div class='maptile empty'></div>"
+        } else if (s == "."){
+          s = "<div class='maptile empty'>"+dot+"</div>"
+        } else if (s == "|"){
+          s = "<div class='maptile wall'></div>"
+        } else if (s == "o"){
+          s = "<div class='maptile empty'>"+power+"</div>"
+        } else if (s == "-"){
+          s = "<div class='maptile ghostwall'></div>"
+        } else {
+          s = "<div class='maptile empty'></div>"
+        }
+        $("#container").append(s);
+      }
+      $("#container").append("<br>");
+    }
+    $("#container").append("<img class='pacman sprite' src=serveimage.png>")
+    $("#container").append("<img class='blinky ghost sprite' src=blinkyold.png baksrc=blinkyold.png>")
+    $("#container").append("<img class='pinky ghost sprite' src=pinkyyghost.png baksrc=pinkyyghost.png>")
+    $("#container").append("<img class='inky ghost sprite' src=inkyyghost.png baksrc=inkyyghost.png>")
+    $("#container").append("<img class='clyde ghost sprite' src=clydeeghost.png baksrc=clydeeghost.png>")
+    beginLife();
+
+  };
+
+  function beginLife(){
+    $('h3').css("left", "176px");
+    $('h3').text("READY!");
+    $('h3').show();
+    pac = new Pacman(14*15,23*15+8);
+    blinky = new Ghost(14*15, 11*15+8,".blinky");
+    blinky.getTarget = function(){
+      var target = [];
+      target.x=pac.x;
+      target.y=pac.y;
+      if (scatter)
+      {
+        target.x=22;
+        target.y=-38;
+      }
+      return target;
+    }
+    pinky = new Ghost(14*15, 14*15, ".pinky");
+    pinky.getTarget = function(){
+      var target = [];
+      switch(pac.lastmove){
+        case "left":
+        target.x=pac.x-60;
+        target.y=pac.y;
+        break;
+        case "right":
+        target.x=pac.x+60;
+        target.y=pac.y;
+        break;
+        case "up":
+        target.x=pac.x-60;
+        target.y=pac.y-60;
+        break;
+        case "down":
+        target.x=pac.x;
+        target.y=pac.y+60;
+        break;
+      }
+      if (scatter)
+      {
+        target.x=26*15+8;
+        target.y=-38;
+      }
+      return target;
+    }
+    inky = new Ghost(12*15+8, 14*15, ".inky");
+    inky.getTarget = function(){
+      var target = [];
+      switch(pac.lastmove){
+        case "left":
+        target.x=2*pac.x-60-blinky.x;
+        target.y=2*pac.y-blinky.y;
+        break;
+        case "right":
+        target.x=2*pac.x+60-blinky.x;
+        target.y=2*pac.y-blinky.y;
+        break;
+        case "up":
+        target.x=2*pac.x-60-blinky.x;
+        target.y=2*pac.y-60-blinky.y;
+        break;
+        case "down":
+        target.x=2*pac.x-blinky.x;
+        target.y=2*pac.y+60-blinky.y;
+        break;
+      }
+      if (scatter)
+      {
+        target.x=26*15+8;
+        target.y=495;
+      }
+      return target;
+    }
+    clyde = new Ghost(15*15+8, 14*15,".clyde");
+    clyde.getTarget = function(){
+      var target = [];
+      target.x=pac.x;
+      target.y=pac.y;
+      if (Math.sqrt((this.x-pac.x)**2+(this.y-pac.y)**2)<120||scatter)
+      {
+        target.x=22;
+        target.y=495;
+      }
+      return target;
+    }
+    vulnGhosts.push(blinky);
+    pac.dir="stop";
+    setupTimer = setTimeout(function(){
+      pac.dir="left"
+      pac.lastmove = "left"
+      pac.updateTimer = setTimeout(function(){
+        pac.update();
+      },20);
+      blinky.updateTimer = setTimeout(function(){
+        blinky.update();
+      },20);
+      pinky.moveTimer = setTimeout(function(){
+        ghostExit(pinky);
+      },50);
+      inky.moveTimer = setTimeout(function(){
+        inky.x=14*15;
+        inky.y=14*15;
+        ghostExit(inky);
+      },5050);
+      clyde.moveTimer = setTimeout(function(){
+        clyde.x=14*15;
+        clyde.y=14*15;
+        ghostExit(clyde);
+      },10050);
+      typeof scatterTimer != "undefined" && clearTimeout(scatterTimer)
+      scatter = false;
+      scatterCount = 0;
+      scatterSwitch();
+      $('h3').hide();
+    },2000)
+  }
+
+  function die(){
+    pac.dead = true;
+    if (lives>0)
+    {
+      lives--;
+
+      $('.lifeholder').children()[0].remove()
+      setTimeout(function(){
+        beginLife();
+      },1000)
+    } else {
+      $('h3').css("left", "147px");
+      $('h3').text("GAME OVER!");
+      $('h3').show();
+    }
+    blinky.vulnTimer && clearTimeout(blinky.vulnTimer)
+    blinky.moveTimer && clearTimeout(blinky.moveTimer)
+    pinky.vulnTimer && clearTimeout(pinky.vulnTimer)
+    pinky.moveTimer && clearTimeout(pinky.moveTimer)
+    inky.vulnTimer && clearTimeout(inky.vulnTimer)
+    inky.moveTimer && clearTimeout(inky.moveTimer)
+    clyde.vulnTimer && clearTimeout(clyde.vulnTimer)
+    clyde.moveTimer && clearTimeout(clyde.moveTimer)
+  }
+
+  function ghostExit(ghost)
+  {
+    if (ghost.y == 11*15+8)
+    {
+      vulnGhosts.push(ghost);
+      ghost.update();
+    } else {
+      ghost.y--;
+      drawImg(ghost.x, ghost.y, ghost.name);
+      ghost.moveTimer = setTimeout(function() {
+        ghostExit(ghost);
+      },50)
+    }
+  }
+  function ghostEnter(ghost)
+  {
+    if (ghost.y == 14*15)
+    {
+      $(ghost.name).attr("src", $(ghost.name).attr("baksrc"));
+      drawImg(ghost.x, ghost.y, ghost.name);
+      ghost.state = "normal"
+      setTimeout(function() {
+        ghost.moveTimer = ghostExit(ghost);
+      },1000);
+    } else {
+      ghost.y++;
+      drawImg(ghost.x, ghost.y, ghost.name);
+      setTimeout(function() {
+        ghost.moveTimer = ghostEnter(ghost);
+      },50)
+    }
+  }
+  function scatterSwitch(){
+    scatter = !scatter;
+    var levelgroup;
+    if (level==1){
+      levelgroup = 0;
+    } else if (level < 5 ) {
+      levelgroup = 1;
+    } else {
+      levelgroup = 2;
+    }
+    if (scatterCount < 7){
+      scatterTimer = setTimeout(function(){
+        scatterSwitch()
+      }, scatterTiming[levelgroup][scatterCount]);
+    }
+    scatterCount++;
+  }
+
+  function Pacman(x, y){
+    this.x = x;
+    this.y = y;
+    this.dead = false;
+    drawImg(x,y,".pacman");
+  }
+  Pacman.prototype.update = function () {
+    if (pac.dead)
+    {
+      return;
+    }
+    switch(this.dir) {
+      case "left":
+      this.x--;
+      break;
+      case "right":
+      this.x++;
+      break;
+      case "up":
+      this.y--;
+      break;
+      case "down":
+      this.y++;
+      break;
+    }
+    if (this.x==0)
+    {
+      this.x =28*15-1;
+    }
+    if (this.x==28*15)
+    {
+      this.x =1;
+    }
+    drawImg(this.x,this.y,".pacman");
+    if((this.x-8)%15==0&&(this.y-8)%15==0)
+    {
+      if (this.newdir){
+        if(tryMove(this.newdir,this.x, this.y))
+        {
+          this.dir = this.newdir
+          this.lastmove = this.newdir
+          this.newdir = undefined;
+        }
+      }
+      if (!tryMove(this.dir,this.x,this.y))
+      {
+        this.stop();
+      }
+      var targetX=Math.floor(this.x/15);
+      var targetY=Math.floor(this.y/15);
+      var target = map[targetX][targetY+3];
+      var levelgroup, state = 0;
+      if (level==1){
+        levelgroup = 0;
+      } else if (level < 5 ) {
+        levelgroup = 1;
+      } else if (level < 21){
+        levelgroup = 2;
+      } else {
+        levelgroup = 3;
+      }
+      if (target == "."||target == "o")
+      {
+        state = 1;
+      }
+      if (this.weak){
+        state += 2;
+      }
+      var power = $(document.elementFromPoint(this.x+1, this.y)).children(".power");//fix targeting by offsetting x
+      if(power.length>0)
+      {
+        power.remove();
+        score += 50;
+        if (score >= 10000 && !elife)
+        {
+          lives++
+          elife = true;
+          $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
+        }
+        $('.score').text("Score: "+score);
+        if ($("#container").children().children().length == 0)
+        {
+          setTimeout(function(){
+            $(".wall").css("background-color", "white");
+          },1000)
+          setTimeout(function(){
+            $(".wall").css("background-color", "blue");
+          },2000)
+          setTimeout(function(){
+            $(".wall").css("background-color", "white");
+          },3000)
+          setTimeout(function(){
+            drawLevel();
+          },4000)
+          pac.dead=true;
+        }
+        setTimeout(function(){
+          map[targetX][targetY+3] = " ";
+        },1000/(600*pacSpeedTable[levelgroup][state]));
+        var timing = ghostWeakenTimingTable[level-1];
+        for (let ghost of vulnGhosts) {//let changes scoping of closures: each run of the loop has a unique variable, rather than them all sharing one.
+          switch(ghost.dir)
+          {
+            case "left":
+            ghost.dir = "right"
+            break;
+            case "right":
+            ghost.dir = "left";
+            break;
+            case "up":
+            ghost.dir = "down";
+            break;
+            case "down":
+            ghost.dir = "up";
+            break;
+          }
+          if (level<=18){
+            $(ghost.name).attr("src", "blueghost.png");
+            ghost.weak = true;
+            ghost.vulnTimer && clearTimeout(ghost.vulnTimer)
+            ghost.vulnTimer = setTimeout(function(){
+              $(ghost.name).attr("src", "whiteghost.png");
+              ghost.vulnTimer = setTimeout(function(){
+                $(ghost.name).attr("src", $(ghost.name).attr("baksrc"));
+                ghost.weak = false;
+              },(timing[1]/3)*1000);
+            },(timing[0]-timing[1]/3)*1000);
+          }
+        }
+        this.weak = true;
+        pac.vulnTimer && clearTimeout(pac.vulnTimer)
+        pac.vulnTime = setTimeout(function(){
+          this.weak = false;
+        },timing[0]*1000)
+        this.ghostEaten = 0;
+      }
+      var dot = $(document.elementFromPoint(this.x+1, this.y)).children(".dot");//fix targeting by offsetting x
+      if(dot.length>0)
+      {
+        dot.remove();
+        score += 10;
+        if (score >= 10000 && !elife)
+        {
+          lives++
+          elife = true;
+          $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
+        }
+        $('.score').text("Score: "+score);
+        if ($("#container").children().children().length == 0)
+        {
+          setTimeout(function(){
+            $(".wall").css("background-color", "white");
+          },1000)
+          setTimeout(function(){
+            $(".wall").css("background-color", "blue");
+          },2000)
+          setTimeout(function(){
+            $(".wall").css("background-color", "white");
+          },3000)
+          setTimeout(function(){
+            drawLevel();
+          },4000)
+          pac.dead=true;
+        }
+        setTimeout(function(){
+          map[targetX][targetY+3] = " ";
+        },1000/(600*pacSpeedTable[levelgroup][state]));
+      }
+    }
+    var targetX=Math.floor(this.x/15);
+    var targetY=Math.floor(this.y/15);
+    var target = map[targetX][targetY+3];
+    var levelgroup, state = 0;
+    if (level==1){
+      levelgroup = 0;
+    } else if (level < 5 ) {
+      levelgroup = 1;
+    } else if (level < 21){
+      levelgroup = 2;
+    } else {
+      levelgroup = 3;
+    }
+    if (target == "."||target == "o")
+    {
+      state = 1;
+    }
+    if (this.weak){
+      state += 2;
+    }
+    this.updateTimer = setTimeout(function(){
+      pac.update();
+    },1000/(75*pacSpeedTable[levelgroup][state]));
+  };
+  Pacman.prototype.stop = function(){
+    this.dir = "stop";
+  }
+
+  function Ghost(x, y, name){
+    this.x = x;
+    this.y = y;
+    this.name = name;
+    drawImg(x,y,name);
+    this.speed = 42.5;
+    this.dir = "left";
+  }
+  Ghost.prototype.update = function () {
+    if (pac.dead)
+    {
+      return;
+    }
+    switch(this.dir) {
+      case "left":
+      this.x--;
+      break;
+      case "right":
+      this.x++;
+      break;
+      case "up":
+      this.y--;
+      break;
+      case "down":
+      this.y++;
+      break;
+    }
+    if (this.x==0)
+    {
+      this.x =28*15-1;
+    }
+    if (this.x==28*15)
+    {
+      this.x =1;
+    }
+    if (this.x==14*15 && this.y==11*15+8 && this.state=="eyes"){
+      ghostEnter(this);
+      return;
+    }
+    if (Math.abs(this.x-pac.x)<6 && Math.abs(this.y-pac.y)<6&&this.state != "eyes")
+    {
+      if (this.weak)
+      {
+        this.state = "eyes";
+        $(this.name).attr("src", "eyes.png");
+        $(this.name).attr("height","6px");
+        clearTimeout(this.vulnTimer);
+        this.weak = false;
+        vulnGhosts.splice(vulnGhosts.indexOf(this),1);
+        score += 200*2**pac.ghostEaten;
+        if (score >= 10000 && !elife)
+        {
+          lives++;
+          elife = true;
+          $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
+        }
+        pac.ghostEaten++;
+        $('.score').text("Score: "+score);
+      } else {
+        die();
+        return;
+      }
+    }
+    drawImg(this.x,this.y,this.name);
+    if((this.x-8)%15==0&&(this.y-8)%15==0)//center of square
+    {
+      var target = this.getTarget();
+      if (this.state=="eyes")
+      {
+        target.x=14*15
+        target.y=11*15+8
+      }
+      var paths = [];
+      switch(this.dir)
+      {
+        case "left":
+        back = "right"
+        break;
+        case "right":
+        back = "left";
+        break;
+        case "up":
+        back = "down";
+        break;
+        case "down":
+        back = "up";
+        break;
+      }
+      paths = ["left","right","up","down"];
+      paths.splice(paths.indexOf(back),1);
+      var trypaths = paths.slice();
+      for(var i = 0; i < trypaths.length; i++){
+        if(!tryMove(trypaths[i], this.x, this.y))
+        {
+          paths.splice(paths.indexOf(trypaths[i]),1);
+        }
+      }
+      var dist = 99999999999; //greater than anything possible
+      for(var i=0; i < paths.length; i++)
+      {
+        var newX, newY;
+        switch(paths[i]){
+          case "left":
+          newX=this.x-15;
+          newY=this.y;
+          break;
+          case "right":
+          newX=this.x+15;
+          newY=this.y;
+          break;
+          case "up":
+          newX=this.x;
+          newY=this.y-15;
+          break;
+          case "down":
+          newX=this.x;
+          newY=this.y+15;
+          break;
+        }
+        d = Math.sqrt((newX-target.x)**2+(newY-target.y)**2); //standard linear distance
+        if (d < dist)
+        {
+          dist = d;
+          this.dir = paths[i];
+        }
+        if(this.weak)
+        {
+          this.dir = paths[Math.floor(Math.random()*paths.length)]
+        }
+      }
+    }
+    var me = this;
+    var levelgroup, movestate;
+    if (level==1){
+      levelgroup = 0;
+    } else if (level < 5 ) {
+      levelgroup = 1;
+    } else {
+      levelgroup = 2;
+    }
+    if (this.x<15||this.x>27*15)
+    {
+      movestate = 2;
+    } else if (this.weak){
+      movestate = 1;
+    } else {
+      movestate = 0;
+    }
+    if (this.state != 'eyes'){
+      this.updateTimer = setTimeout(function(){
+        me.update();
+      },1000/(75*ghostSpeedTable[levelgroup][movestate]));
+    } else {
+      this.updateTimer = setTimeout(function(){
+        me.update();
+      },1000/(150*ghostSpeedTable[levelgroup][0]));
+    }
+  };
+
+  $(document).ready(function() {
+    $(document).keydown(function(e){
+      switch(e.keyCode)
+      {
+        case 37:
+        if (pac.dir=="right")
+        {
+          pac.dir = "left";
+          pac.lastmove = "left"
+        } else {
+          pac.newdir="left";
+        }
+        break;
+        case 38:
+        if (pac.dir=="down")
+        {
+          pac.dir = "up";
+          pac.lastmove = "up"
+        } else {
+          pac.newdir="up";
+        }
+        break;
+        case 39:
+        if (pac.dir=="left")
+        {
+          pac.dir = "right";
+          pac.lastmove = "right"
+        } else {
+          pac.newdir="right";
+        }
+        break;
+        case 40:
+        if (pac.dir=="up")
+        {
+          pac.dir = "down";
+          pac.lastmove = "down"
+        } else {
+          pac.newdir="down";
+        }
+        break;
+      }
+      return e.keyCode < 37 || e.keyCode > 40;
+    })
+    init();
+    $('button').click(function(){
+      init();
+    })
+
+  });
+  setInterval(function () {
+    var vis = $(".blink").css("visibility");
+    vis = (!vis || vis == "visible") ? "hidden" : "visible";
+    $(".blink").css("visibility", vis);
+  }, 500);
+  </script>
+  <style>
+
+
+  </style>
+</head>
+<body>
+  <div id="container">
+  </div>
+  <h3>GAME OVER!</h3>
+  <div class=sidebar>
+    <p class=score>Score:</p>
+    <br>
+    <p>Lives:</p>
+    <div class=lifeholder></div>
+    <button type="button" name="button">Reset</button>
+  </div>
+</body>
+</html>
