@@ -21,15 +21,3 @@ Status
 - Implements the proper progression of bonus fruit. Does not implement the screen-bottom level drawing code, so does not have the level 256 glitch.
 
 - Implements the proper speed of ghosts and Pacman, using the same formulas as the arcade machine.
-
-History
--------
-
-- The 'randomfill' folder contains a Python solution that uses a special
-  heuristic for progressively placing random valid walls.
-- The 'answerset' folder contains a
-  [Clingo](http://potassco.sourceforge.net/#clingo) solution that specifies
-  declarative constraints.  This [blog post](http://eis-blog.ucsc.edu/2011/10/map-generation-speedrun/)
-  is a good introduction to map generation using Clingo.
-- The 'spanningtree' folder is a lead to apply a modified version of conventional maze generation algorithms.
-- The 'tetris' folder contains a solution for stacking pieces in a tetris like manner.
