@@ -45,6 +45,7 @@
   scatterTiming=[[7000,20000,7000,20000,5000,20000,5000,999999999999],
   [7000,20000,7000,20000,5000,1033000,10,999999999999],
   [5000,20000,5000,20000,5000,1037000,10,999999999999]]
+  cruiseElroy=[20,30,40,40,40,50,50,50,60,60,60,80,80,80,100,100,100,100,120,120]
   var drawImg = function(x,y,target)
   {
     $(target).css("top",(y-7)+"px");
@@ -92,6 +93,7 @@
   }
   function drawLevel(startup = false){
     level++;
+    cruise = 0;
     typeof blinky != "undefined" && blinky.vulnTimer && blinky.vulnTimer.forEach(function(e){
       clearTimeout(e)
     });
@@ -164,6 +166,7 @@
     $('h3').css("left", "176px");
     $('h3').text("READY!");
     $('h3').show();
+    clydeOut = false;
     pac = new Pacman(14*15,23*15+8);
     $(".pacman").attr("src","sprite/pacleft.gif")
     blinky = new Ghost(14*15, 11*15+8,".blinky");
@@ -172,7 +175,7 @@
       var target = [];
       target.x=pac.x;
       target.y=pac.y;
-      if (scatter)
+      if (scatter && !(cruise && clydeOut))//If Cruise Elroy, don't skatter if Clyde has left.
       {
         target.x=22;
         target.y=-38;
@@ -341,6 +344,10 @@
       vulnGhosts.push(ghost);
       $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+"left.gif")
       ghost.update();
+      if (ghost.name == ".clyde")
+      {
+        clydeOut = true;
+      }
     } else {
       ghost.y--;
       $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+"up.gif")
@@ -481,9 +488,6 @@
       {
         power.remove();
         dotSound.play()
-        if (!eyeCount)
-        {
-        }
         score += 50;
         if (score >= 10000 && !elife)
         {
@@ -492,7 +496,8 @@
           $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
         }
         $('.score').text("Score: "+score);
-        if ($("#container").children().children().length == 0)
+        var dots = $("#container").children().children().length
+        if (dots == 0)
         {
           setTimeout(function(){
             $(".wall").css("background-color", "white");
@@ -507,6 +512,10 @@
             drawLevel();
           },4000)
           pac.dead=true;
+        } else if (dots == cruiseElroy[Math.min(18,level-1)]) {
+          cruise = 1;
+        } else if (dots == cruiseElroy[Math.min(18,level-1)]/2) {
+          cruise = 2;
         }
         setTimeout(function(){
           map[targetX][targetY+3] = " ";
@@ -591,7 +600,8 @@
           $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
         }
         $('.score').text("Score: "+score);
-        if ($("#container").children().children().length == 0)
+        var dots = $("#container").children().children().length
+        if (dots == 0)
         {
           setTimeout(function(){
             $(".wall").css("background-color", "white");
@@ -606,6 +616,10 @@
             drawLevel();
           },4000)
           pac.dead=true;
+        } else if (dots == cruiseElroy[Math.min(18,level-1)]) {
+          cruise = 1;
+        } else if (dots == cruiseElroy[Math.min(18,level-1)]/2) {
+          cruise = 2;
         }
         setTimeout(function(){
           map[targetX][targetY+3] = " ";
@@ -799,9 +813,14 @@
       movestate = 0;
     }
     if (this.state != 'eyes'){
+      var speed = ghostSpeedTable[levelgroup][movestate];
+      if (this.name == ".blinky" && cruise && clydeOut && movestate == 0)//blinky speeds up sometimes, based on remaining dots. it's called "Cruise Elroy", although nobody knows why.
+      {
+        speed = ghostSpeedTable[levelgroup][0]+.05*cruise;
+      }
       this.updateTimer = setTimeout(function(){
         me.update();
-      },1000/(75*ghostSpeedTable[levelgroup][movestate]));
+      },1000/(75*speed));
     } else {
       this.updateTimer = setTimeout(function(){
         me.update();
@@ -870,10 +889,6 @@
     $(".blink").css("visibility", vis);
   }, 500);
   </script>
-  <style>
-
-
-  </style>
 </head>
 <body>
   <div id="container">
