@@ -269,7 +269,7 @@
       blinky.updateTimer = setTimeout(function(){
         blinky.update();
       },20);
-      blinky.dir = "right";
+      blinky.dir = "left";
       pinky.moveTimer = setTimeout(function(){
         ghostExit(pinky);
       },50);
@@ -393,23 +393,25 @@
         scatterSwitch()
       }, scatterTiming[levelgroup][scatterCount]);
     }
-    scatterCount++;
-    for (let ghost of vulnGhosts) {//let changes scoping of closures: each run of the loop has a unique variable, rather than them all sharing one.
-      switch(ghost.dir)
-      {
-        case "left":
-        ghost.dir = "right"
-        break;
-        case "right":
-        ghost.dir = "left";
-        break;
-        case "up":
-        ghost.dir = "down";
-        break;
-        case "down":
-        ghost.dir = "up";
-        break;
+    if (scatterCount) {
+      for (let ghost of vulnGhosts) {//let changes scoping of closures: each run of the loop has a unique variable, rather than them all sharing one.
+        switch(ghost.dir)
+        {
+          case "left":
+          ghost.newdir = "right"
+          break;
+          case "right":
+          ghost.newdir = "left";
+          break;
+          case "up":
+          ghost.newdir = "down";
+          break;
+          case "down":
+          ghost.newdir = "up";
+          break;
+        }
       }
+      scatterCount++;
     }
   }
 
@@ -525,19 +527,19 @@
           switch(ghost.dir)
           {
             case "left":
-            ghost.dir = "right"
+            ghost.newdir = "right"
             break;
             case "right":
-            ghost.dir = "left";
+            ghost.newdir = "left";
             break;
             case "up":
-            ghost.dir = "down";
+            ghost.newdir = "down";
             break;
             case "down":
-            ghost.dir = "up";
+            ghost.newdir = "up";
             break;
           }
-          $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.dir+".gif")
+          $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.newdir+".gif")
           if (level<=18){
             $(ghost.name).attr("src", "sprite/blueghost.gif");
             ghost.weak = true;
@@ -661,6 +663,7 @@
     drawImg(x,y,name);
     this.speed = 42.5;
     this.dir = "left";
+    this.newdir = "left";
   }
   Ghost.prototype.update = function () {
     if (pac.dead)
@@ -730,6 +733,8 @@
         target.y=11*15+8
       }
       var paths = [];
+      var back;
+      this.dir = this.newdir;
       switch(this.dir)
       {
         case "left":
@@ -748,8 +753,27 @@
       paths = ["left","right","up","down"];
       paths.splice(paths.indexOf(back),1);
       var trypaths = paths.slice();
+      var newX, newY;
+      switch(this.dir){
+        case "left":
+        newX=this.x-15;
+        newY=this.y;
+        break;
+        case "right":
+        newX=this.x+15;
+        newY=this.y;
+        break;
+        case "up":
+        newX=this.x;
+        newY=this.y-15;
+        break;
+        case "down":
+        newX=this.x;
+        newY=this.y+15;
+        break;
+      }
       for(var i = 0; i < trypaths.length; i++){
-        if(!tryMove(trypaths[i], this.x, this.y))
+        if(!tryMove(trypaths[i], newX, newY))
         {
           paths.splice(paths.indexOf(trypaths[i]),1);
         }
@@ -757,30 +781,30 @@
       var dist = 99999999999; //greater than anything possible
       for(var i=0; i < paths.length; i++)
       {
-        var newX, newY;
+        var testX, testY;
         switch(paths[i]){
           case "left":
-          newX=this.x-15;
-          newY=this.y;
+          testX=this.x-15;
+          testY=this.y;
           break;
           case "right":
-          newX=this.x+15;
-          newY=this.y;
+          testX=this.x+15;
+          testY=this.y;
           break;
           case "up":
-          newX=this.x;
-          newY=this.y-15;
+          testX=this.x;
+          testY=this.y-15;
           break;
           case "down":
-          newX=this.x;
-          newY=this.y+15;
+          testX=this.x;
+          testY=this.y+15;
           break;
         }
-        d = Math.sqrt((newX-target.x)**2+(newY-target.y)**2); //standard linear distance
+        d = Math.sqrt((testX-target.x)**2+(testY-target.y)**2); //standard linear distance
         if (d < dist)
         {
           dist = d;
-          this.dir = paths[i];
+          this.newdir = paths[i];
         }
       }
       if(this.weak)
@@ -789,9 +813,9 @@
       } else {
         if (!(this.state == "eyes"))
         {
-          $(this.name).attr("src","sprite/"+this.name.substring(1)+this.dir+".gif")
+          $(this.name).attr("src","sprite/"+this.name.substring(1)+this.newdir+".gif")
         } else {
-          $(this.name).attr("src","sprite/eyes"+this.dir+".png")
+          $(this.name).attr("src","sprite/eyes"+this.newdir+".png")
         }
       }
     }
