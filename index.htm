@@ -14,6 +14,8 @@
   deathSound = new Audio("sounds/death.mp3")
   startupSound = new Audio("sounds/startMusic.mp3")
   ghostSound = new Audio("sounds/eatingGhost.mp3")
+  fruitSound = new Audio("sounds/fruit.mp3")
+  lifeSound = new Audio("sounds/extraLife.mp3")
 
 
 
@@ -46,6 +48,20 @@
   [7000,20000,7000,20000,5000,1033000,10,999999999999],
   [5000,20000,5000,20000,5000,1037000,10,999999999999]]
   cruiseElroy=[20,30,40,40,40,50,50,50,60,60,60,80,80,80,100,100,100,100,120,120]
+  fruitTable = [["cherries.png",100],
+  ["strawberry.png",300],
+  ["orange.png",500],
+  ["orange.png",500],
+  ["apple.png",700],
+  ["apple.png",700],
+  ["melon.png",1000],
+  ["melon.png",1000],
+  ["galaxian.png",2000],
+  ["galaxian.png",2000],
+  ["bell.png",3000],
+  ["bell.png",3000],
+  ["key.png",5000],
+  ["key.png",5000]]
   var drawImg = function(x,y,target)
   {
     $(target).css("top",(y-7)+"px");
@@ -158,6 +174,7 @@
     $("#container").append("<img class='pinky ghost sprite' src=sprite/pinkyup.gif>")
     $("#container").append("<img class='inky ghost sprite' src=sprite/inkydown.gif>")
     $("#container").append("<img class='clyde ghost sprite' src=sprite/clydedown.gif>")
+    $("#container").append("<img class='fruit sprite' src=sprite/blank.png>")
     beginLife(startup);
 
   };
@@ -167,6 +184,7 @@
     $('h3').text("READY!");
     $('h3').show();
     clydeOut = false;
+    fruitVisible=false;
     pac = new Pacman(14*15,23*15+8);
     $(".pacman").attr("src","sprite/pacleft.gif")
     blinky = new Ghost(14*15, 11*15+8,".blinky");
@@ -175,7 +193,7 @@
       var target = [];
       target.x=pac.x;
       target.y=pac.y;
-      if (scatter && !(cruise && clydeOut))//If Cruise Elroy, don't skatter if Clyde has left.
+      if (scatter && !(cruise && clydeOut))//If Cruise Elroy, don't scatter if Clyde has left.
       {
         target.x=22;
         target.y=-38;
@@ -415,6 +433,17 @@
     }
   }
 
+  function showFruit(){
+    $(".fruit").attr("src", "sprite/"+fruitTable[Math.min(level-1, 12)][0]);
+    drawImg(14*15,17*15+8,".fruit");
+    fruitVisible = true;
+    setTimeout(function(){
+      $(".fruit").attr("src", "sprite/blank.png");
+      drawImg(14*15,17*15+8,".fruit");
+      fruitVisible=false;
+    }, (9+Math.random())*1000)
+  }
+
   function Pacman(x, y){
     this.x = x;
     this.y = y;
@@ -447,6 +476,23 @@
     if (this.x==28*15)
     {
       this.x =1;
+    }
+    if (fruitVisible && this.x == 14*15 && this.y == 17*15+8)
+    {
+      fruitSound.play();
+      fruitVisible = false;
+      $(".fruit").attr("src", "sprite/blank.png");
+      drawImg(14*15,17*15+8,".fruit");
+      score += fruitTable[Math.min(level-1, 12)][1];
+      if (score >= 10000 && !elife)
+      {
+        lives++
+        elife = true;
+        lifeSound.play();
+        $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
+      }
+      $('.score').text("Score: "+score);
+
     }
     drawImg(this.x,this.y,".pacman");
     if((this.x-8)%15==0&&(this.y-8)%15==0)
@@ -495,10 +541,12 @@
         {
           lives++
           elife = true;
+          lifeSound.play();
           $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
         }
         $('.score').text("Score: "+score);
         var dots = $("#container").children().children().length
+        console.log(dots)
         if (dots == 0)
         {
           setTimeout(function(){
@@ -519,27 +567,32 @@
         } else if (dots == cruiseElroy[Math.min(18,level-1)]/2) {
           cruise = 2;
         }
+        if (dots == 74 || dots == 174)
+        {
+          showFruit();
+        }
         setTimeout(function(){
           map[targetX][targetY+3] = " ";
         },1000/(600*pacSpeedTable[levelgroup][state]));
-        var timing = ghostWeakenTimingTable[level-1];
+        var timing = ghostWeakenTimingTable[Math.min(level,ghostWeakenTimingTable.length)-1];
         for (let ghost of vulnGhosts) {//let changes scoping of closures: each run of the loop has a unique variable, rather than them all sharing one.
           switch(ghost.dir)
           {
             case "left":
-            ghost.newdir = "right"
+            ghost.dir = "right"
             break;
             case "right":
-            ghost.newdir = "left";
+            ghost.dir = "left";
             break;
             case "up":
-            ghost.newdir = "down";
+            ghost.dir = "down";
             break;
             case "down":
-            ghost.newdir = "up";
+            ghost.dir = "up";
             break;
           }
-          $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.newdir+".gif")
+          ghost.newdir = undefined
+          $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.dir+".gif")
           if (level<=18){
             $(ghost.name).attr("src", "sprite/blueghost.gif");
             ghost.weak = true;
@@ -599,10 +652,12 @@
         {
           lives++
           elife = true;
+          lifeSound.play()
           $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
         }
         $('.score').text("Score: "+score);
         var dots = $("#container").children().children().length
+        console.log(dots)
         if (dots == 0)
         {
           setTimeout(function(){
@@ -622,6 +677,10 @@
           cruise = 1;
         } else if (dots == cruiseElroy[Math.min(18,level-1)]/2) {
           cruise = 2;
+        }
+        if (dots == 74 || dots == 174)
+        {
+          showFruit();
         }
         setTimeout(function(){
           map[targetX][targetY+3] = " ";
@@ -715,6 +774,7 @@
           lives++;
           elife = true;
           $('.lifeholder').append("<img src=serveimage.png height=15 width =15>");
+          lifeSound.play()
         }
         pac.ghostEaten++;
         $('.score').text("Score: "+score);
@@ -734,7 +794,10 @@
       }
       var paths = [];
       var back;
-      this.dir = this.newdir;
+      if (this.newdir)
+      {
+        this.dir = this.newdir;
+      }
       switch(this.dir)
       {
         case "left":
@@ -801,7 +864,7 @@
           break;
         }
         d = Math.sqrt((testX-target.x)**2+(testY-target.y)**2); //standard linear distance
-        if (d < dist)
+        if (d < dist && !this.weak)
         {
           dist = d;
           this.newdir = paths[i];
@@ -809,7 +872,11 @@
       }
       if(this.weak)
       {
-        this.dir = paths[Math.floor(Math.random()*paths.length)]
+        var valid = false;
+        while (!valid){
+          this.dir = trypaths[Math.floor(Math.random()*trypaths.length)]
+          valid = tryMove(this.dir, this.x, this.y)
+        }
       } else {
         if (!(this.state == "eyes"))
         {
@@ -851,7 +918,6 @@
       },1000/(150*ghostSpeedTable[levelgroup][0]));
     }
   };
-
   $(document).ready(function() {
     $(document).keydown(function(e){
       switch(e.keyCode)
