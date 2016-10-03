@@ -546,7 +546,6 @@
         }
         $('.score').text("Score: "+score);
         var dots = $("#container").children().children().length
-        console.log(dots)
         if (dots == 0)
         {
           setTimeout(function(){
@@ -576,22 +575,24 @@
         },1000/(600*pacSpeedTable[levelgroup][state]));
         var timing = ghostWeakenTimingTable[Math.min(level,ghostWeakenTimingTable.length)-1];
         for (let ghost of vulnGhosts) {//let changes scoping of closures: each run of the loop has a unique variable, rather than them all sharing one.
-          switch(ghost.dir)
-          {
-            case "left":
-            ghost.dir = "right"
-            break;
-            case "right":
-            ghost.dir = "left";
-            break;
-            case "up":
-            ghost.dir = "down";
-            break;
-            case "down":
-            ghost.dir = "up";
-            break;
-          }
-          ghost.newdir = undefined
+          // if(!((this.x-8)%15==0&&(this.y-8)%15==0)){
+          //   switch(ghost.dir)
+          //   {
+          //     case "left":
+          //     ghost.dir = "right"
+          //     break;
+          //     case "right":
+          //     ghost.dir = "left";
+          //     break;
+          //     case "up":
+          //     ghost.dir = "down";
+          //     break;
+          //     case "down":
+          //     ghost.dir = "up";
+          //     break;
+          //   }
+          // }
+          ghost.newdir = ghost.back;
           $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.dir+".gif")
           if (level<=18){
             $(ghost.name).attr("src", "sprite/blueghost.gif");
@@ -632,6 +633,7 @@
             ghost.vulnTimer.push(setTimeout(function(){
               $(ghost.name).attr("src","sprite/"+ghost.name.substring(1)+ghost.dir+".gif")
               ghost.weak = false;
+              // ghost.newdir = "recalc";
             },timing[0]*1001));
           }
         }
@@ -657,7 +659,6 @@
         }
         $('.score').text("Score: "+score);
         var dots = $("#container").children().children().length
-        console.log(dots)
         if (dots == 0)
         {
           setTimeout(function(){
@@ -784,7 +785,7 @@
       }
     }
     drawImg(this.x,this.y,this.name);
-    if((this.x-8)%15==0&&(this.y-8)%15==0)//center of square
+    if((this.x-8)%15==0&&(this.y-8)%15==0 )//center of square
     {
       var target = this.getTarget();
       if (this.state=="eyes")
@@ -793,28 +794,31 @@
         target.y=11*15+8
       }
       var paths = [];
-      var back;
-      if (this.newdir)
+      if (this.newdir == "recalc")
+      {
+        console.log("recalc "+this.name)
+      }
+      if (this.newdir && this.newdir != "recalc")
       {
         this.dir = this.newdir;
       }
       switch(this.dir)
       {
         case "left":
-        back = "right"
+        this.back = "right"
         break;
         case "right":
-        back = "left";
+        this.back = "left";
         break;
         case "up":
-        back = "down";
+        this.back = "down";
         break;
         case "down":
-        back = "up";
+        this.back = "up";
         break;
       }
       paths = ["left","right","up","down"];
-      paths.splice(paths.indexOf(back),1);
+      paths.splice(paths.indexOf(this.back),1);
       var trypaths = paths.slice();
       var newX, newY;
       switch(this.dir){
@@ -841,43 +845,45 @@
           paths.splice(paths.indexOf(trypaths[i]),1);
         }
       }
-      var dist = 99999999999; //greater than anything possible
-      for(var i=0; i < paths.length; i++)
+      if (paths.length == 0)
       {
-        var testX, testY;
-        switch(paths[i]){
-          case "left":
-          testX=this.x-15;
-          testY=this.y;
-          break;
-          case "right":
-          testX=this.x+15;
-          testY=this.y;
-          break;
-          case "up":
-          testX=this.x;
-          testY=this.y-15;
-          break;
-          case "down":
-          testX=this.x;
-          testY=this.y+15;
-          break;
-        }
-        d = Math.sqrt((testX-target.x)**2+(testY-target.y)**2); //standard linear distance
-        if (d < dist && !this.weak)
-        {
-          dist = d;
-          this.newdir = paths[i];
-        }
+        console.log(this.name + " can't move")
       }
-      if(this.weak)
-      {
-        var valid = false;
-        while (!valid){
-          this.dir = trypaths[Math.floor(Math.random()*trypaths.length)]
-          valid = tryMove(this.dir, this.x, this.y)
+      if (!this.weak){
+        var dist = 99999999999; //greater than anything possible
+        for(var i=0; i < paths.length; i++)
+        {
+          var testX, testY;
+          switch(paths[i]){
+            case "left":
+            testX=this.x-15;
+            testY=this.y;
+            break;
+            case "right":
+            testX=this.x+15;
+            testY=this.y;
+            break;
+            case "up":
+            testX=this.x;
+            testY=this.y-15;
+            break;
+            case "down":
+            testX=this.x;
+            testY=this.y+15;
+            break;
+          }
+          d = Math.sqrt((testX-target.x)**2+(testY-target.y)**2); //standard linear distance
+          if (d < dist && !this.weak)
+          {
+            dist = d;
+            this.newdir = paths[i];
+          }
         }
       } else {
+        var loc = Math.floor(Math.random()*paths.length)
+        this.newdir = paths[loc]
+      }
+      if (!this.weak &&this.newdir != "recalc"){
         if (!(this.state == "eyes"))
         {
           $(this.name).attr("src","sprite/"+this.name.substring(1)+this.newdir+".gif")
