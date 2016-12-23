@@ -1,0 +1,49 @@
+{
+    "env": {
+        "es6": true,
+        "node": true,
+        "browser": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+        "sourceType": "module"
+    },
+    "globals":{
+      "$":false,
+      "angular":false
+    },
+    "rules": {
+        "indent": [
+            "error",
+            2
+        ],
+        "linebreak-style": [
+            "error",
+            "windows"
+        ],
+        "quotes": [
+            "error",
+            "double"
+        ],
+        "semi": [
+            "error",
+            "always"
+        ],
+        "no-console": "off",
+        "array-callback-return": "error",
+        "block-scoped-var": "error",
+        "curly": "error",
+        "dot-notation": ["error", { "allowPattern": "^[a-z]+(_[a-z]+)+$" }],
+        "eqeqeq": ["error", "smart"],
+        "no-alert": "error",
+        "no-floating-decimal": "error",
+        "no-invalid-this": "error",
+        "no-use-before-define": ["error", {"functions":false}],
+        "handle-callback-err": "error",
+        "callback-return": "error",
+        "global-require": "error",
+        "brace-style": ["error", "1tbs", { "allowSingleLine": true }],
+        "no-lonely-if": "error"
+    },
+    "plugins": ["html"]
+}
